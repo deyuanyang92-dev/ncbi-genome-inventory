@@ -1,4 +1,4 @@
-# ncbi_genome_inventory
+# ncbi-genome-inventory
 
 One command → an Excel inventory of every NCBI whole-genome assembly under a taxon, with the raw data behind
 each assembly (HiFi, Hi-C, RNA-seq, ONT …), the mitogenomes, and the taxonomy.
@@ -8,14 +8,19 @@ each assembly (HiFi, Hi-C, RNA-seq, ONT …), the mitogenomes, and the taxonomy.
 
 ## Install / run
 
+```bash
+git clone https://github.com/deyuanyang92-dev/ncbi-genome-inventory.git
+cd ncbi-genome-inventory
+```
+
 Python ≥ 3.8, **standard library only** (no pip install, no `datasets`/`edirect`/`kingfisher`).
 
 ```bash
-python3 ncbi_genome_inventory/genome_inventory.py Annelida -o Annelida_genome_inventory
-python3 ncbi_genome_inventory/genome_inventory.py Polynoidae --no-worms     # skip WoRMS
-python3 ncbi_genome_inventory/genome_inventory.py 6340                      # taxid also works
-python3 ncbi_genome_inventory/genome_inventory.py Annelida --update         # new NCBI assemblies (fast)
-python3 ncbi_genome_inventory/genome_inventory.py Annelida --refresh        # refetch everything
+python3 genome_inventory.py Annelida -o Annelida_genome_inventory
+python3 genome_inventory.py Polynoidae --no-worms     # skip WoRMS
+python3 genome_inventory.py 6340                      # taxid also works
+python3 genome_inventory.py Annelida --update         # new NCBI assemblies (fast)
+python3 genome_inventory.py Annelida --refresh        # refetch everything
 ```
 
 - Raw responses are cached in `<out>/raw/`. If a step fails (network), rerun the same command: finished steps
@@ -29,7 +34,7 @@ python3 ncbi_genome_inventory/genome_inventory.py Annelida --refresh        # re
 ## Web interface
 
 ```bash
-python3 ncbi_genome_inventory/webapp.py --data-dir /mnt/p/genome_inventory     # open http://127.0.0.1:8765
+python3 webapp.py --data-dir genome_inventory_results    # open http://127.0.0.1:8765
 ```
 
 Type a taxon, press **Run**: the page runs the same `genome_inventory.py` (CLI and web always agree), shows the
@@ -150,6 +155,6 @@ individual → mitogenome from the same sample*. Closest:
 - Values from NCBI are never changed; derived columns end with `_derived`.
 - Some new assemblies (e.g. 2026 Sanger releases) have no public raw reads yet in NCBI SRA or ENA — QC lists
   them; that is not a linking failure.
-- Tests (offline): `python3 -m pytest -q ncbi_genome_inventory/tests`.
-- `ncbi.py` / `xlsx.py` are adapted from `yzz_taxonomy_workflow/modules/sra` (same author); the yzz `sra`
-  module is the tool for a full SRA inventory of a taxon (all runs, shallow vs deep WGS).
+- Tests (offline): `python3 -m pytest -q tests`.
+- `ncbi.py` / `xlsx.py` are adapted from [yzz_taxonomy_workflow](https://github.com/deyuanyang92-dev/yzz_taxonomy_workflow) `modules/sra` (same author); that module is the tool for a full SRA inventory of a taxon (all runs, shallow vs deep WGS).
+- Developed first in [Temp_scripts](https://github.com/deyuanyang92-dev/Temp_scripts) (`ncbi_genome_inventory/`); this repository is the maintained home.

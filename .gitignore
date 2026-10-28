@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+# run outputs
+*_genome_inventory/
+genome_inventory_results/
+*.xlsx
