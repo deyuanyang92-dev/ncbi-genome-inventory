@@ -162,7 +162,8 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/files":
                 d = self.result_dir(q.get("taxon"))
                 return self.send(200, json.dumps(sorted(p.name for p in d.iterdir() if p.is_file()
-                                                        and p.suffix in (".xlsx", ".tsv", ".log"))))
+                                                        and p.suffix in (".xlsx", ".tsv", ".log")
+                                                        and not p.name.startswith(("~$", ".")))))  # Office lock files
             if u.path == "/api/table":
                 name = q.get("name")
                 if name not in TABLES:
