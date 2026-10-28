@@ -446,7 +446,7 @@ def build(taxon, taxid, asm_reports, mito_asm, tax, sra, bp_parents, mitos, worm
 
 
 def enrich(asm_rows, sp_rows, runs, sample_info, goat):
-    """Same-individual evidence, category confidence, GoaT status; returns (goat_pipeline rows, qc rows)."""
+    """Same-specimen evidence, category confidence, GoaT status; returns (goat_pipeline rows, qc rows)."""
     graph = core.sample_graph(sample_info.get("relations", {}))
     attrs = sample_info.get("attrs", {})
     asm_bs = {a["assembly_accession"]: a["biosample"] for a in asm_rows}
@@ -456,15 +456,15 @@ def enrich(asm_rows, sp_rows, runs, sample_info, goat):
         ev = []
         for item in filter(None, r["linked_assemblies_derived"].split(";")):
             acc = item.rsplit(":", 1)[0]
-            e = core.individual_evidence(r.get("BioSample", ""), asm_bs.get(acc, ""), graph, attrs)
+            e = core.specimen_evidence(r.get("BioSample", ""), asm_bs.get(acc, ""), graph, attrs)
             ev.append(f"{acc}: {e}")
             per_asm[acc][e.split(":")[0]].add(r["category_derived"])
-        r["individual_derived"] = ";".join(ev)
+        r["specimen_derived"] = ";".join(ev)
     for a in asm_rows:
         d = per_asm.get(a["assembly_accession"], {})
-        for key, col in (("same individual", "same_individual_types_derived"),
-                         ("different individual", "other_individual_types_derived"),
-                         ("unknown", "individual_unknown_types_derived")):
+        for key, col in (("same specimen", "same_specimen_types_derived"),
+                         ("different specimen", "other_specimen_types_derived"),
+                         ("unknown", "specimen_unknown_types_derived")):
             a[col] = "+".join(c for c in core.CATEGORIES if c in d.get(key, set()))
     qc, pipeline = [], []
     if goat:
@@ -489,8 +489,8 @@ def write_outputs(out, taxon, taxid, asm_rows, sp_rows, runs, mito_rows, qc, arg
     asm_cols = core.NCBI_COLS + head_tax + worms_c + [
         "representative_derived", "found_in_derived", "assembly_content_derived", "assembly_type", "refseq_category", "bioproject_parents", "tissue",
         "geo_loc_name", "assembly_method", "genome_coverage", "annotation_provider",
-        "data_types_derived", "link_evidence_derived", "same_individual_types_derived",
-        "other_individual_types_derived", "individual_unknown_types_derived"]
+        "data_types_derived", "link_evidence_derived", "same_specimen_types_derived",
+        "other_specimen_types_derived", "specimen_unknown_types_derived"]
     asm_cols += [f"{c}_{s}" for c in core.CATEGORIES for s in ("runs", "Gb", "accessions")]
     asm_cols += ["species_SRA_types_derived", "species_SRA_runs", "organelles_declared", "mito_accession",
                  "mito_length_bp", "mito_source_derived", "mito_note_derived", "mito_same_sample_all",
@@ -525,9 +525,10 @@ def write_outputs(out, taxon, taxid, asm_rows, sp_rows, runs, mito_rows, qc, arg
                                "RS/RS II/Sequel -> CLR, else PacBio_unknown; ONT genomic/transcriptomic; "
                                "transcriptomic short -> RNA-seq; WGS short -> short_read_WGS; 10x/stLFR keyword -> "
                                "10x_linked. Keywords from experiment title, design, library name/protocol."),
-             ("same individual", "run sample = assembly sample, or linked by ENA sample relation "
-                                 "(derived_from/same_as/has_part, directly or via a common parent), or same ToLID; "
-                                 "different ToLIDs = different individual; otherwise unknown"),
+             ("same specimen", "run sample = assembly sample, or linked by ENA sample relation "
+                               "(derived_from/same_as/has_part, directly or via a common parent), or same ToLID; "
+                               "different ToLIDs = different specimen; otherwise unknown (unknown is not different). "
+                               "A specimen is one individual or one registered pool of small/clonal organisms."),
              ("category_confidence_derived", "high = explicit strategy/protocol/keyword or HiFi-only instrument; "
                                              "medium = pre-HiFi instrument; low = inferred (Sequel IIe) or unresolved"),
              ("GoaT", "goat.genomehubs.org: assembly cross-check + species in sequencing pipeline without an NCBI "
@@ -678,9 +679,9 @@ def main(argv=None):
     print("  mitogenome per assembly: " + "; ".join(f"{k} {v}" for k, v in src.items()))
     ind = defaultdict(int)
     for r in runs:
-        for item in filter(None, r["individual_derived"].split(";")):
+        for item in filter(None, r["specimen_derived"].split(";")):
             ind[item.split(": ", 1)[1].split(":")[0]] += 1
-    print("  linked run-assembly pairs by individual: " + "; ".join(f"{k} {v}" for k, v in ind.items()))
+    print("  linked run-assembly pairs by specimen: " + "; ".join(f"{k} {v}" for k, v in ind.items()))
     print(f"  -> {xlsx}")
     return 0
 

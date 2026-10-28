@@ -524,7 +524,7 @@ def crosscheck(asm_rows, entrez):
     return qc
 
 
-# ---------------------------------------------------------------- same individual? (ENA sample relations / ToLID)
+# ---------------------------------------------------------------- same specimen? (ENA sample relations / ToLID)
 
 def parse_ena_sample_relations(tsv):
     """ENA portal result=sample (sample_accession, related_sample_accession) -> {acc: [(related, type)]}.
@@ -569,20 +569,22 @@ def sample_graph(relations):
     return g
 
 
-def individual_evidence(run_bs, asm_bs, graph, attrs):
-    """Is the run's sample the assembly's individual? Returns 'same individual: <basis>',
-    'different individual: <basis>' or 'unknown'. graph = sample_graph(...); attrs = {biosample: {tolid}}.
-    A ToLID names one individual (wpAchSqua1 vs wpAchSqua2)."""
+def specimen_evidence(run_bs, asm_bs, graph, attrs):
+    """Does the run come from the assembly's specimen? Returns 'same specimen: <basis>',
+    'different specimen: <basis>' or 'unknown'. graph = sample_graph(...); attrs = {biosample: {tolid}}.
+    A ToLID names one specimen and its number increments per specimen (wpAchSqua1 vs wpAchSqua2); a specimen is
+    one individual, or one registered pool for small/clonal organisms (Wellcome Open Res 2024,
+    doi:10.12688/wellcomeopenres.22949.1) - hence "specimen", not "individual". 'unknown' is not 'different'."""
     if not run_bs or not asm_bs:
         return "unknown"
     if run_bs == asm_bs:
-        return "same individual: same BioSample"
+        return "same specimen: same BioSample"
     n_run, n_asm = graph.get(run_bs, set()), graph.get(asm_bs, set())
     if asm_bs in n_run or (n_run & n_asm):
-        return "same individual: BioSample relation"
+        return "same specimen: BioSample relation"
     t1, t2 = (attrs.get(run_bs) or {}).get("tolid", ""), (attrs.get(asm_bs) or {}).get("tolid", "")
     if t1 and t2:
-        return "same individual: same ToLID" if t1 == t2 else f"different individual: ToLID {t1} vs {t2}"
+        return "same specimen: same ToLID" if t1 == t2 else f"different specimen: ToLID {t1} vs {t2}"
     return "unknown"
 
 

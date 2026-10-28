@@ -31,7 +31,7 @@ names in WoRMS, and merge everything in Excel. All examples below are real outpu
 | 1 | **Assembly table** with the same 41 columns as the NCBI Datasets web export | Which genomes exist for my taxon, and how good are they? |
 | 2 | **Taxonomy**: NCBI lineage (phylum → species) + WoRMS accepted name | Where does each genome sit, is the name still valid? |
 | 3 | **Raw data per assembly**: HiFi, CLR, ONT, Hi-C, short-read WGS, 10x, RNA-seq, Iso-Seq — run accessions and Gb | Which data were used to build this genome? |
-| 4 | **Same individual?** for every linked run (ENA sample relations, ToLID) | Is the Hi-C / RNA-seq from the same animal as the assembly? |
+| 4 | **Same specimen?** for linked runs, where submitters recorded it (ENA sample relations, ToLID) | Is the Hi-C / RNA-seq from the same specimen as the assembly — when that can be known? |
 | 5 | **One mitogenome per assembly, same sample first**; same-name substitutes are flagged | Which mitogenome belongs to this genome? |
 | 6 | **Species being sequenced** (GoaT) that have no NCBI assembly yet, with project names | What is coming next for my taxon? |
 | 7 | **Three sources cross-checked** (NCBI Datasets, Entrez, GoaT) + QC sheet | Is anything missing or inconsistent? |
@@ -74,7 +74,7 @@ The log shows each step; this is the end of a real Annelida run:
   GoaT species in pipeline without NCBI assembly: 368
   assemblies with linked data type: HiFi 153, CLR 8, PacBio_unknown 1, ONT 19, Hi-C 169, short_read_WGS 92, 10x_linked 17, RNA-seq 120, Iso-Seq 3, Other 3
   mitogenome per assembly: same sample: in assembly 107; same sample: same BioSample 65; SUBSTITUTE ... 44; none 35
-  linked run-assembly pairs by individual: same individual 3148; different individual 176; unknown 156
+  linked run-assembly pairs by specimen: same specimen 3148; different specimen 176; unknown 156
   -> Annelida_genome_inventory/Annelida_genome_inventory_20261028.xlsx
 ```
 
@@ -121,7 +121,7 @@ python3 webapp.py --data-dir genome_inventory_results       # then open http://1
 1. Type a taxon, tick **update** if results already exist, press **Run** — the log appears live.
 2. When it finishes (or for any existing result folder) the tables open as tabs: assemblies, species,
    mitogenomes, qc, runs, changes, goat_pipeline.
-3. Type in the filter box (a family, `SUBSTITUTE`, `different individual` …), click a header to sort, untick
+3. Type in the filter box (a family, `SUBSTITUTE`, `different specimen` …), click a header to sort, untick
    *key columns only* to see every column. Substitute mitogenomes are shown in orange.
 4. Download links for the Excel and TSV files are above the tabs.
 
@@ -183,20 +183,36 @@ Every run is classified in the **Runs** sheet, with the rule and a confidence:
 
 Annelida: Hi-C is linked to 169 assemblies, HiFi to 153, RNA-seq to 120, ONT to 19.
 
-### 4. Same individual?
+### 4. Same specimen? (bonus, where the metadata allow it)
 
-A run linked through the project is not necessarily from the sequenced animal; `individual_derived` checks it:
+The main answer — which raw data belong to an assembly — comes from the links in feature 3. A link through a
+project does not say whether the reads come from the sequenced specimen, so `specimen_derived` adds this
+**when the submitters recorded it**:
 
-| Run | Type | Species | individual_derived |
+| Evidence | How reliable | Annelida pairs |
+|---|---|---|
+| same BioSample as the assembly | certain | 2,651 |
+| ENA sample relation (`derived_from`, `same_as`, `has_part`, directly or via a common parent) | strong — recorded by the submitter | 493 |
+| same ToLID | strong | 4 |
+| different ToLIDs → **different specimen** | strong | 176 |
+| none of the above → `unknown` | not decidable; **unknown is not "different"** | 156 |
+
+Examples:
+
+| Run | Type | Species | specimen_derived |
 |---|---|---|---|
-| ERR10841326 | HiFi | Acholoe squamosa | same individual: BioSample relation (derived from the assembly sample) |
-| ERR10851523 | Hi-C | Acholoe squamosa | same individual: BioSample relation |
-| ERR16650963 | HiFi | Melinna palmata | different individual: ToLID wtMelPalm9 vs wtMelPalm2 |
-| ERR16650975 | Hi-C | Melinna palmata | different individual: ToLID wtMelPalm1 vs wtMelPalm2 |
+| ERR10841326 | HiFi | Acholoe squamosa | same specimen: BioSample relation (derived from the assembly sample) |
+| ERR10851523 | Hi-C | Acholoe squamosa | same specimen: BioSample relation |
+| ERR16650963 | HiFi | Melinna palmata | different specimen: ToLID wtMelPalm9 vs wtMelPalm2 |
+| ERR16650975 | Hi-C | Melinna palmata | different specimen: ToLID wtMelPalm1 vs wtMelPalm2 |
 
-Assemblies get `same_individual_types_derived` and `other_individual_types_derived`; for *Acholoe* both HiFi
-and Hi-C come from the reference animal. Annelida: 3,148 run–assembly pairs from the same individual, 176 from
-a different one, 156 unknown.
+Why "specimen" and not "individual": a ToLID names one specimen and its number increments per specimen, but
+small or clonal organisms may be registered as **one pool of several animals under one ToLID**
+([Wellcome Open Res 2024](https://doi.org/10.12688/wellcomeopenres.22949.1)). Coverage depends on the
+submitter: of the 829 Annelida pairs where run and assembly have different BioSamples, 81 % could be decided
+(mostly Sanger / DToL / ERGA submissions); the 156 unknown pairs come from labs that record neither ToLIDs nor
+sample relations. Assemblies get `same_specimen_types_derived`, `other_specimen_types_derived` and
+`specimen_unknown_types_derived`.
 
 ### 5. One mitogenome per assembly, same sample first
 
@@ -262,9 +278,9 @@ After `--update`, the **Changes** sheet has rows such as `new assembly`, `no lon
 
 | Sheet | One row per | Main columns |
 |---|---|---|
-| Assemblies | assembly (GCA; paired GCF in `Assembly Paired Assembly Accession`) | 41 NCBI columns, taxonomy, data types and run accessions, same-individual types, mitogenome |
+| Assemblies | assembly (GCA; paired GCF in `Assembly Paired Assembly Accession`) | 41 NCBI columns, taxonomy, data types and run accessions, same-specimen types, mitogenome |
 | Species | species (taxid) | representative assembly, all assemblies, data types, mitogenome, GoaT status |
-| Runs | SRA run of these species | RunInfo, library protocol, category + rule + confidence, linked assemblies, individual |
+| Runs | SRA run of these species | RunInfo, library protocol, category + rule + confidence, linked assemblies, specimen |
 | Mitogenomes | nuccore mitochondrial record | length, topology, BioSample, relation to assemblies |
 | QC | issue | scope, ID, name, message |
 | Changes | difference from the previous run | change, assembly, field, old, new |
@@ -282,7 +298,7 @@ copied from NCBI unchanged. The `.xlsx` stores text as text; in the `.tsv` files
 | Assembly list and metadata | NCBI Datasets v2 (NCBI moved the retired Assembly/Genome websites to Datasets in June 2024); cross-checked with Entrez `assembly` and GoaT |
 | Sequences inside each assembly | NCBI FTP `*_assembly_report.txt` (all sequence names in one request); Datasets `sequence_reports` as fallback |
 | Raw data | SRA RunInfo + SRA XML (title, design, library protocol) |
-| Same individual | ENA `related_sample_accession` (`derived_from`, `same_as`, `has_part`) and the `tolid` sample attribute |
+| Same specimen | ENA `related_sample_accession` (`derived_from`, `same_as`, `has_part`) and the `tolid` sample attribute |
 | Mitogenome records | nuccore by species (10–100 kb) and by BioSample (any length) |
 | Taxonomy | NCBI Taxonomy; WoRMS `AphiaRecordsByMatchNames` |
 | Species being sequenced | GoaT API (`sequencing_status`, `long_list`) |
@@ -318,6 +334,8 @@ with the assembly's BioSample > record with the BioSample of linked raw data > s
   needs sequence screening (e.g. BLAST), which this tool does not do.
 - **Substitute mitogenomes are not identity-checked**; verify them (e.g. COI against the assembly) before use.
 - **GoaT status is self-reported** by sequencing projects and may lag; "in progress" does not guarantee a release.
+- **Same-specimen evidence exists only where submitters recorded ToLIDs or sample relations** (mostly
+  Sanger / DToL / ERGA); elsewhere it is `unknown`, which does not mean a different specimen.
 - Data-type rules depend on submitter text; uncertain calls carry `low` confidence or `PacBio_unknown`.
 
 ## Testing
@@ -334,7 +352,7 @@ adapted from [yzz_taxonomy_workflow](https://github.com/deyuanyang92-dev/yzz_tax
 [Temp_scripts](https://github.com/deyuanyang92-dev/Temp_scripts); this repository is the maintained home.
 
 Related tools: [GoaT](https://goat.genomehubs.org), NCBI `datasets`, ncbi-genome-download, genome_updater,
-kingfisher, pysradb, ffq. None of them links assemblies to their raw data, individuals and same-sample
+kingfisher, pysradb, ffq. None of them links assemblies to their raw data, specimens and same-sample
 mitogenomes for a whole taxon.
 
 ## License

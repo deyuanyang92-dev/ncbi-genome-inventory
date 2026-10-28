@@ -248,23 +248,23 @@ def test_incremental_cache_fetches_only_new_items(tmp_path):
     assert calls == [["a", "b"], ["c"]]
 
 
-# ---------------------------------------------------------------- same individual / confidence / GoaT / changes
+# ---------------------------------------------------------------- same specimen / confidence / GoaT / changes
 
-def test_individual_evidence_acholoe_live_relations():
+def test_specimen_evidence_acholoe_live_relations():
     # live ENA 2026-10-28: HiFi sample SAMEA13854475 and Hi-C sample SAMEA13854477 derived_from SAMEA13854387
     tsv = ("sample_accession\trelated_sample_accession\tscientific_name\n"
            "SAMEA13854475\tSAMEA13854387:derived_from\tAcholoe squamosa\n"
            "SAMEA13854387\tSAMEA13854475:has_part\tAcholoe squamosa\n"
            "SAMEA13854477\tSAMEA13854387:derived_from\tAcholoe squamosa\n")
     g = core.sample_graph(core.parse_ena_sample_relations(tsv))
-    assert core.individual_evidence("SAMEA13854477", "SAMEA13854387", g, {}) == "same individual: BioSample relation"
+    assert core.specimen_evidence("SAMEA13854477", "SAMEA13854387", g, {}) == "same specimen: BioSample relation"
     attrs = {"S1": {"tolid": "wpXxx1"}, "S2": {"tolid": "wpXxx2"}, "S3": {"tolid": "wpXxx1"}}
-    assert core.individual_evidence("S1", "S2", {}, attrs).startswith("different individual")
-    assert core.individual_evidence("S1", "S3", {}, attrs) == "same individual: same ToLID"
-    assert core.individual_evidence("S9", "S2", {}, attrs) == "unknown"
-    # two samples derived from a common specimen sample = same individual
+    assert core.specimen_evidence("S1", "S2", {}, attrs).startswith("different specimen")
+    assert core.specimen_evidence("S1", "S3", {}, attrs) == "same specimen: same ToLID"
+    assert core.specimen_evidence("S9", "S2", {}, attrs) == "unknown"
+    # two samples derived from a common specimen sample = same specimen
     g2 = core.sample_graph({"A": [("P", "derived_from")], "B": [("P", "derived_from")]})
-    assert core.individual_evidence("A", "B", g2, {}) == "same individual: BioSample relation"
+    assert core.specimen_evidence("A", "B", g2, {}) == "same specimen: BioSample relation"
 
 
 def test_ena_sample_xml_tolid():

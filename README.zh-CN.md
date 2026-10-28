@@ -27,7 +27,7 @@
 | 1 | **组装总表**：前 41 列与 NCBI Datasets 网页导出完全一致 | 这个类群有哪些基因组，质量如何？ |
 | 2 | **分类阶元**：NCBI 门到种 + WoRMS 有效名 | 每个基因组属于哪个科，学名是否有效？ |
 | 3 | **每个组装的原始数据**：HiFi、CLR、ONT、Hi-C、短读长 WGS、10x、RNA-seq、Iso-Seq，给出 run 号和数据量 | 这个基因组是用什么数据组装的？ |
-| 4 | **是否同一个体**：根据 ENA 样本关系和 ToLID 判断 | Hi-C、RNA-seq 是否来自组装用的同一只动物？ |
+| 4 | **是否同一标本**：在提交者登记了相关信息时，根据 ENA 样本关系和 ToLID 判断 | 能判断时，Hi-C、RNA-seq 是否来自组装用的同一个标本？ |
 | 5 | **每个组装一个线粒体，优先同一样品**；同名替代会醒目标注 | 这个基因组对应的线粒体是哪条？ |
 | 6 | **正在测序的物种**（GoaT）：尚无 NCBI 组装的物种及其测序项目 | 这个类群接下来会出哪些基因组？ |
 | 7 | **三个数据源交叉核对**（NCBI Datasets、Entrez、GoaT）+ QC 表 | 有没有遗漏或不一致？ |
@@ -70,7 +70,7 @@ python3 genome_inventory.py Annelida -o Annelida_genome_inventory
   GoaT species in pipeline without NCBI assembly: 368
   assemblies with linked data type: HiFi 153, CLR 8, PacBio_unknown 1, ONT 19, Hi-C 169, short_read_WGS 92, 10x_linked 17, RNA-seq 120, Iso-Seq 3, Other 3
   mitogenome per assembly: same sample: in assembly 107; same sample: same BioSample 65; SUBSTITUTE ... 44; none 35
-  linked run-assembly pairs by individual: same individual 3148; different individual 176; unknown 156
+  linked run-assembly pairs by specimen: same specimen 3148; different specimen 176; unknown 156
   -> Annelida_genome_inventory/Annelida_genome_inventory_20261028.xlsx
 ```
 
@@ -114,7 +114,7 @@ python3 webapp.py --data-dir genome_inventory_results       # 然后用浏览器
 
 1. 输入类群名；已有结果时勾选 **update**；点 **Run**，页面实时显示运行日志。
 2. 运行完成后（或点击已有的结果文件夹），各表以标签页打开：assemblies、species、mitogenomes、qc、runs、changes、goat_pipeline。
-3. 在筛选框输入科名、`SUBSTITUTE`、`different individual` 等即可过滤；点表头排序；取消 *key columns only* 可显示全部列。同名替代的线粒体用橙色标出。
+3. 在筛选框输入科名、`SUBSTITUTE`、`different specimen` 等即可过滤；点表头排序；取消 *key columns only* 可显示全部列。同名替代的线粒体用橙色标出。
 4. 标签页上方是 Excel 和 TSV 文件的下载链接。
 
 网页版调用的是同一个 `genome_inventory.py`，结果与命令行完全一致。服务只在本机（127.0.0.1）监听，并校验 Host、Origin 和每次启动生成的随机令牌。
@@ -167,18 +167,28 @@ Assemblies 表对每种数据类型给出 `<类型>_runs`（run 数）、`<类�
 
 环节动物：Hi-C 关联到 169 个组装，HiFi 153 个，RNA-seq 120 个，ONT 19 个。
 
-### 4. 是否同一个体
+### 4. 是否同一标本（附加信息，元数据允许时才能判断）
 
-通过项目关联到的数据，不一定来自被组装的那只动物。`individual_derived` 列逐条判断：
+"组装对应哪些原始数据"这个主要问题，由第 3 项的关联列回答。通过项目关联到的数据，不一定来自被组装的那个标本；`specimen_derived` 列在**提交者登记了相关信息时**补充这一判断：
 
-| Run | 类型 | 物种 | individual_derived |
+| 证据 | 可靠程度 | 环节动物配对数 |
+|---|---|---|
+| 与组装是同一个 BioSample | 确定 | 2,651 |
+| ENA 样本关系（`derived_from`、`same_as`、`has_part`，直接相连或有共同上级样品） | 强，由提交者登记 | 493 |
+| ToLID 相同 | 强 | 4 |
+| ToLID 不同 → **不同标本** | 强 | 176 |
+| 以上都没有 → `unknown` | 无法判断；**判断不了不等于不同** | 156 |
+
+示例：
+
+| Run | 类型 | 物种 | specimen_derived |
 |---|---|---|---|
-| ERR10841326 | HiFi | Acholoe squamosa | same individual: BioSample relation（样品衍生自组装样品） |
-| ERR10851523 | Hi-C | Acholoe squamosa | same individual: BioSample relation |
-| ERR16650963 | HiFi | Melinna palmata | different individual: ToLID wtMelPalm9 vs wtMelPalm2 |
-| ERR16650975 | Hi-C | Melinna palmata | different individual: ToLID wtMelPalm1 vs wtMelPalm2 |
+| ERR10841326 | HiFi | Acholoe squamosa | same specimen: BioSample relation（样品衍生自组装样品） |
+| ERR10851523 | Hi-C | Acholoe squamosa | same specimen: BioSample relation |
+| ERR16650963 | HiFi | Melinna palmata | different specimen: ToLID wtMelPalm9 vs wtMelPalm2 |
+| ERR16650975 | Hi-C | Melinna palmata | different specimen: ToLID wtMelPalm1 vs wtMelPalm2 |
 
-组装表给出 `same_individual_types_derived`（来自同一个体的数据类型）和 `other_individual_types_derived`（来自其他个体的数据类型）。*Acholoe* 的 HiFi 和 Hi-C 都来自参考个体；*Melinna* 的组装来自 wtMelPalm2，而 HiFi、Hi-C 分别来自 wtMelPalm9、wtMelPalm1。环节动物：同一个体 3,148 对，不同个体 176 对，无法判断 156 对。
+为什么说"标本"而不是"个体"：一个 ToLID 对应一个标本，末尾数字随每个新标本递增；但体型很小或克隆繁殖的生物，可以把**多只动物混成一个样、登记为一个 ToLID**（[Wellcome Open Res 2024](https://doi.org/10.12688/wellcomeopenres.22949.1)）。能否判断取决于提交者：环节动物中原始数据与组装 BioSample 不同的 829 对里，81% 能判断（主要是 Sanger / DToL / ERGA 的提交）；判断不了的 156 对，来自既不登记 ToLID、也不写样本关系的实验室。组装表给出 `same_specimen_types_derived`、`other_specimen_types_derived`、`specimen_unknown_types_derived` 三列。
 
 ### 5. 每个组装一个线粒体，优先同一样品
 
@@ -236,9 +246,9 @@ NCBI Datasets、Entrez `assembly`、GoaT 三个来源的组装名单互相核对
 
 | 工作表 | 每行是 | 主要内容 |
 |---|---|---|
-| Assemblies | 一个组装（GCA；对应的 GCF 在 `Assembly Paired Assembly Accession`） | NCBI 41 列、分类阶元、数据类型和 run 号、同一个体判定、线粒体 |
+| Assemblies | 一个组装（GCA；对应的 GCF 在 `Assembly Paired Assembly Accession`） | NCBI 41 列、分类阶元、数据类型和 run 号、同一标本判定、线粒体 |
 | Species | 一个物种 | 代表性组装、全部组装、数据类型、线粒体、GoaT 状态 |
-| Runs | 一个 SRA run | RunInfo、建库方案、数据类型及规则和可信度、关联的组装、个体判定 |
+| Runs | 一个 SRA run | RunInfo、建库方案、数据类型及规则和可信度、关联的组装、标本判定 |
 | Mitogenomes | 一条线粒体记录 | 长度、拓扑、BioSample、与组装的关系 |
 | QC | 一个问题 | 范围、ID、名称、说明 |
 | Changes | 与上次结果的一处差异 | 变化类型、组装、字段、旧值、新值 |
@@ -254,7 +264,7 @@ NCBI Datasets、Entrez `assembly`、GoaT 三个来源的组装名单互相核对
 | 组装名单和信息 | NCBI Datasets v2（NCBI 于 2024 年 6 月关闭 Assembly/Genome 网站，功能并入 Datasets）；与 Entrez `assembly` 库、GoaT 交叉核对 |
 | 组装内的序列（找线粒体） | NCBI FTP 上的 `*_assembly_report.txt`（一次请求得到全部序列名）；失败时改用 Datasets `sequence_reports` |
 | 原始数据 | SRA RunInfo + SRA XML（实验标题、设计、建库方案） |
-| 是否同一个体 | ENA `related_sample_accession`（`derived_from`、`same_as`、`has_part`）和样品属性 `tolid` |
+| 是否同一标本 | ENA `related_sample_accession`（`derived_from`、`same_as`、`has_part`）和样品属性 `tolid` |
 | 线粒体记录 | nuccore 按物种检索（10–100 kb）、按 BioSample 检索（不限长度） |
 | 分类阶元 | NCBI Taxonomy；WoRMS `AphiaRecordsByMatchNames` |
 | 正在测序的物种 | GoaT 接口（`sequencing_status`、`long_list`） |
@@ -283,6 +293,7 @@ NCBI Datasets、Entrez `assembly`、GoaT 三个来源的组装名单互相核对
 - **没有标注的线粒体找不到。** 组装里如果线粒体是一条普通命名的片段，需要序列比对（如 BLAST）才能识别，本工具不做。
 - **同名替代的线粒体没有核实身份**，使用前请自行核对（如用 COI 与组装比对）。
 - **GoaT 的测序进度由各项目自行上报**，可能滞后；"在测"不代表一定会发布。
+- **只有提交者登记了 ToLID 或样本关系时，才能判断是否同一标本**（主要是 Sanger / DToL / ERGA）；其他情况标为 `unknown`，不代表是不同标本。
 - 数据类型判定依赖提交者填写的文字；不确定的判定标为低可信度或 `PacBio_unknown`。
 
 ## 测试
